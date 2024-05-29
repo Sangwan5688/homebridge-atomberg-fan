@@ -1,5 +1,5 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "Atomeberg Fan",
   "pluginType": "platform",
   "singular": true,
   "schema": {
@@ -8,9 +8,45 @@
       "name": {
         "title": "Name",
         "type": "string",
-        "required": true,
-        "default": "Example Dynamic Platform"
+        "default": "Homebridge Atomeberg Fan",
+        "placeholder": "Homebridge Atomeberg Fan",
+        "required": true
+      },
+      "apiKey": {
+        "title": "API Key",
+        "type": "string",
+        "placeholder": "API Key",
+        "required": true
+      },
+      "refreshToken": {
+        "title": "Refresh Token",
+        "type": "string",
+        "placeholder": "Refresh Token",
+        "required": true
       }
     }
-  }
+  },
+  "layout": [
+    {
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": [
+        "name"
+      ]
+    },
+    {
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": [
+        "apiKey"
+      ]
+    },
+    {
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": [
+        "refreshToken"
+      ]
+    }
+  ]
 }
