@@ -13,11 +13,11 @@ export const ATOMBERG_API_ENDPOINTS = {
   GET_DEVICES: '/v1/get_list_of_devices',
   SEND_COMMAND: '/v1/send_command',
   GET_DEVICE_STATE: '/v1/get_device_state',
-}
+};
 
 export const ATOMBERG_ERROR_CODES = {
   401: 'Access token expired',
   403: 'Forbidden, please make sure Developer mode is enabled and correct token is provided',
   404: 'Device not found',
-  429: 'API limit Reached'
+  429: 'API limit Reached',
 };

@@ -1,5 +1,5 @@
 {
-  "pluginAlias": "Atomeberg Fan",
+  "pluginAlias": "Atomberg Fan",
   "pluginType": "platform",
   "singular": true,
   "schema": {
@@ -8,8 +8,8 @@
       "name": {
         "title": "Name",
         "type": "string",
-        "default": "Homebridge Atomeberg Fan",
-        "placeholder": "Homebridge Atomeberg Fan",
+        "default": "Homebridge Atomberg Fan",
+        "placeholder": "Homebridge Atomberg Fan",
         "required": true
       },
       "apiKey": {

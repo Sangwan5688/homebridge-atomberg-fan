@@ -6,7 +6,7 @@ export interface AtombergFanPlatformConfig extends PlatformConfig {
 }
 
 export interface AtombergFanDevice {
-    deviceId: string;
+    device_id: string;
     color: string;
     series: string;
     model: string;

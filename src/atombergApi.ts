@@ -110,7 +110,7 @@ export default class AtombergApi {
         if (response.data.status !== 'Success') {
           return Promise.reject(response.data?.message ?? response.data);
         }
-        this.logger.debug('AtombergFanApi: AtombergFan platform getAllDevices successful');
+        this.logger.debug('AtombergFanApi: AtombergFan platform getAllDevices success');
         return response.data.message.devices_list as AtombergFanDevice[];
       })
       .catch((error: AxiosError) => {
@@ -184,7 +184,7 @@ export default class AtombergApi {
         return true;
       })
       .catch((error: AxiosError) => {
-        this.logger.debug('AtombergFanApi: AtombergFan platform sendCommand failed');
+        this.logger.error('AtombergFanApi: AtombergFan platform sendCommand failed');
         this.handleNetworkRequestError(error);
         return Promise.reject();
       });

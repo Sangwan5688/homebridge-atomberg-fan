@@ -2,7 +2,7 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { AtombergFanPlatformAccessory } from './platformAccessory';
 import AtombergApi from './atombergApi';
-import { AtombergFanPlatformConfig, AtombergFanDevice } from './model';
+import { AtombergFanPlatformConfig, AtombergFanDevice, AtombergFanDeviceState } from './model';
 /**
  * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
@@ -92,64 +92,69 @@ export class AtombergFanPlatform implements DynamicPlatformPlugin {
       // or a user-defined array in the platform config.
 
       const devices: AtombergFanDevice[] = await this.atombergApi.getAllDevices();
+      if (!devices) {
+        this.log.info('No devices found on Atomberg platform.');
+      } else {
+        const deviceStates: AtombergFanDeviceState[] = await this.atombergApi.getDeviceState();
+        // loop over the discovered devices and register each one if it has not already been registered
+        for (const device of devices) {
 
-      // loop over the discovered devices and register each one if it has not already been registered
-      for (const device of devices) {
+          // generate a unique id for the accessory this should be generated from
+          // something globally unique, but constant, for example, the device serial
+          // number or MAC address
+          const uuid = this.api.hap.uuid.generate(device.device_id);
 
-        // generate a unique id for the accessory this should be generated from
-        // something globally unique, but constant, for example, the device serial
-        // number or MAC address
-        const uuid = this.api.hap.uuid.generate(device.deviceId);
+          // see if an accessory with the same uuid has already been registered and restored from
+          // the cached devices we stored in the `configureAccessory` method above
+          const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+          const deviceState = deviceStates.find(dvc => dvc.device_id === device.device_id) as AtombergFanDeviceState;
 
-        // see if an accessory with the same uuid has already been registered and restored from
-        // the cached devices we stored in the `configureAccessory` method above
-        const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+          if (existingAccessory) {
+            // the accessory already exists
+            this.log.info(`Restoring existing accessory of displayName [${existingAccessory.displayName}] `
+                                    + ` and deviceId [${device.device_id}] from cache.`);
 
-        if (existingAccessory) {
-          // the accessory already exists
-          this.log.info(`Restoring existing accessory of displayName [${existingAccessory.displayName}] `
-                                  + ` and deviceId [${device.deviceId}] from cache.`);
+            // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. e.g.:
+            // existingAccessory.context.device = device;
+            // this.api.updatePlatformAccessories([existingAccessory]);
+            existingAccessory.context.device = device;
+            existingAccessory.context.deviceDisplayName = `${device.name}`;
+            this.api.updatePlatformAccessories([existingAccessory]);
 
-          // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. e.g.:
-          // existingAccessory.context.device = device;
-          // this.api.updatePlatformAccessories([existingAccessory]);
-          existingAccessory.context.device = device;
-          existingAccessory.context.deviceDisplayName = `${device.name}`;
-          this.api.updatePlatformAccessories([existingAccessory]);
+            // create the accessory handler for the restored accessory
+            // this is imported from `platformAccessory.ts`
+            new AtombergFanPlatformAccessory(this, this.atombergApi, existingAccessory, deviceState);
 
-          // create the accessory handler for the restored accessory
-          // this is imported from `platformAccessory.ts`
-          new AtombergFanPlatformAccessory(this, existingAccessory, this.atombergApi);
+            // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, e.g.:
+            // remove platform accessories when no longer present
+            // this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
+            // this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
+          } else {
+            // the accessory does not yet exist, so we need to create it
+            this.log.info('Adding new accessory:', device.name);
 
-          // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, e.g.:
-          // remove platform accessories when no longer present
-          // this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
-          // this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
-        } else {
-          // the accessory does not yet exist, so we need to create it
-          this.log.info('Adding new accessory:', device.name);
+            // create a new accessory
+            const accessory = new this.api.platformAccessory(device.name, uuid);
 
-          // create a new accessory
-          const accessory = new this.api.platformAccessory(device.name, uuid);
+            // store a copy of the device object in the `accessory.context`
+            // the `context` property can be used to store any data about the accessory you may need
+            accessory.context.device = device;
 
-          // store a copy of the device object in the `accessory.context`
-          // the `context` property can be used to store any data about the accessory you may need
-          accessory.context.device = device;
+            // create the accessory handler for the newly create accessory
+            // this is imported from `platformAccessory.ts`
+            new AtombergFanPlatformAccessory(this, this.atombergApi, accessory, deviceState);
 
-          // create the accessory handler for the newly create accessory
-          // this is imported from `platformAccessory.ts`
-          new AtombergFanPlatformAccessory(this, accessory, this.atombergApi);
-
-          // link the accessory to your platform
-          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+            // link the accessory to your platform
+            this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+          }
         }
       }
 
       // At this point, we set up all devices from the Platform, but we did not unregister
       // cached devices that do not exist on Atomberg account anymore.
       for (const cachedAccessory of this.accessories) {
-        const deviceId = cachedAccessory.context.device.deviceId;
-        const removedPlatformDevice = devices.find(device => device.deviceId === deviceId);
+        const deviceId = cachedAccessory.context.device.device_id;
+        const removedPlatformDevice = devices.find(device => device.device_id === deviceId);
 
         if (!removedPlatformDevice) {
           // This cached devices does not exist on the MirAIe platform account (anymore).

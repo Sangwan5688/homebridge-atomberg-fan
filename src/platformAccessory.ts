@@ -16,18 +16,12 @@ export class AtombergFanPlatformAccessory {
    * These are just used to create a working example
    * You should implement your own code to track the state of your accessory
    */
-  private fanState = {
-    'device_id': '',
-    'is_online': false,
-    'power': false,
-    'led': false,
-    'last_recorded_speed': 0,
-  };
 
   constructor(
     private readonly platform: AtombergFanPlatform,
-    private readonly accessory: PlatformAccessory,
     private readonly atombergApi: AtombergApi,
+    private readonly accessory: PlatformAccessory,
+    private fanState: AtombergFanDeviceState,
   ) {
 
     let modelName = accessory.context.device.model || '';
@@ -49,7 +43,7 @@ export class AtombergFanPlatformAccessory {
 
     // get the Fan service if it exists, otherwise create a new Fan service
     // you can create multiple services for each accessory
-    this.service = this.accessory.getService(this.platform.Service.Fan) || this.accessory.addService(this.platform.Service.Fan);
+    this.service = this.accessory.getService(this.platform.Service.Fanv2) || this.accessory.addService(this.platform.Service.Fanv2);
 
     // set the service name, this is what is displayed as the default name on the Home app
     // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
@@ -64,7 +58,7 @@ export class AtombergFanPlatformAccessory {
     // .onGet(this.getActive.bind(this));              // GET - bind to the `getOn` method below
 
 
-    // register handlers for the Brightness Characteristic
+    // register handlers for the Speed Characteristic
     this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .setProps({
         minValue: 0,
@@ -108,8 +102,8 @@ export class AtombergFanPlatformAccessory {
     this.platform.log.debug('Set Characteristic Active ->', value);
     const powerState = value === this.platform.Characteristic.Active.ACTIVE;
     const cmdData = {
-      'device_id': this.accessory.context.device.deviceId,
-      'command': {'power': powerState},
+      'device_id': this.accessory.context.device.device_id,
+      'command': {'power': powerState, 'speed': powerState ? this.fanState.last_recorded_speed : 0},
     } as AtombergFanCommandData;
     this.sendDeviceUpdate(cmdData);
   }
@@ -123,6 +117,7 @@ export class AtombergFanPlatformAccessory {
 
   private async sendDeviceUpdate(commandData: AtombergFanCommandData) {
     try {
+      console.log('Sending command data: ', commandData);
       const res = await this.atombergApi.sendCommand(commandData);
       if (res) {
         this.platform.log.debug(`Successfully sent device update for device ['${this.accessory.displayName}']`);
@@ -173,11 +168,12 @@ export class AtombergFanPlatformAccessory {
     this.fanState.last_recorded_speed = value as number;
 
     this.platform.log.debug('Set Characteristic Speed -> ', value);
-    const cmdData = {
-      'device_id': this.accessory.context.device.deviceId,
-      'command': {'speed': value},
-    } as AtombergFanCommandData;
-    this.sendDeviceUpdate(cmdData);
+    // commenting for now
+    // const cmdData = {
+    //   'device_id': this.accessory.context.device.device_id,
+    //   'command': {'speed': value},
+    // } as AtombergFanCommandData;
+    // this.sendDeviceUpdate(cmdData);
   }
 
   public refreshDeviceStatus(deviceState: AtombergFanDeviceState): void {
