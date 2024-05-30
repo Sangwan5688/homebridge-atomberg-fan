@@ -3,6 +3,10 @@ import { Logger } from 'homebridge';
 import { EventEmitter } from 'events';
 import { AtombergFanDeviceState } from './model';
 
+/**
+ * BroadcastListener
+ * This class is responsible for listening to broadcast messages from the Atomberg Fan devices.
+ */
 class BroadcastListener extends EventEmitter {
   private static instance: BroadcastListener;
   public readonly socket = dgram.createSocket('udp4');
@@ -53,7 +57,7 @@ class BroadcastListener extends EventEmitter {
       const speed = (0x07) & stateCode;
       const fanTimer = ((0x0F0000 & stateCode) / 65536);
       const fanTimerElapsedMins = ((0xFF000000 & stateCode) * 4 / 16777216);
-      //Aris Starlight Specific
+      // Aris Starlight Specific
       const brightness = (((0x7F00) & stateCode) / 256);
       const cool = ((0x08) & stateCode) > 0 ? true : false;
       const warm = ((0x8000) & stateCode) > 0 ? true : false;

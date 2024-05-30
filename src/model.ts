@@ -1,5 +1,8 @@
 import {PlatformConfig} from 'homebridge';
 
+/**
+ * Model for the configuration of the plugin
+ */
 export interface AtombergFanPlatformConfig extends PlatformConfig {
     apiKey: string;
     refreshToken: string;

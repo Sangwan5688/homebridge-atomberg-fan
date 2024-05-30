@@ -5,7 +5,8 @@ import { Logger } from 'homebridge';
 
 
 /**
- * This class exposes login, device status fetching, and device status update functions.
+ * AtombergApi
+ * This class is responsible for handling all API calls to the Atomberg platform.
  */
 export default class AtombergApi {
   private accessToken: string;
@@ -23,21 +24,14 @@ export default class AtombergApi {
     return this.accessToken;
   }
 
-  /**
-     * Logs in the user with AtombergFan platform and
-     * saves the retrieved token on the instance.
-     */
+
   public async login(): Promise<void> {
-    /**
-         * A repeat-login might have been requested by several accessories
-         * at a similar time. The first timeout to be executed can clear
-         * all remaining ones, since it doesn't make sense to log in multiple
-         * times within a short amount of time.
-         */
+    // Clear all previous login retry timeouts and intervals
     for (const timeoutId of this._loginRetryTimeouts) {
       clearTimeout(timeoutId);
     }
     clearInterval(<NodeJS.Timeout>this._loginRefreshInterval);
+
     const headers = {
       'accept': 'application/json',
       'Content-Type': 'application/json',
@@ -82,11 +76,7 @@ export default class AtombergApi {
     this._loginRetryTimeouts.push(setTimeout(this.login.bind(this), LOGIN_RETRY_DELAY));
   }
 
-  /**
-     * Fetches the home details registered with the user's AtombergFan platform account
-     *
-     * @returns A promise of all the user's AtombergFan platform home details.
-     */
+
   public async getAllDevices(): Promise<AtombergFanDevice[]> {
     this.logger.debug('AtombergFanApi: Fetching Device Details from AtombergFanApi platform');
 

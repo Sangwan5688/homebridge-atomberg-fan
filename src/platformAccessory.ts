@@ -12,11 +12,6 @@ import { AtombergFanCommandData, AtombergFanDeviceState } from './model';
 export class AtombergFanPlatformAccessory {
   private service: Service;
 
-  /**
-   * These are just used to create a working example
-   * You should implement your own code to track the state of your accessory
-   */
-
   constructor(
     private readonly platform: AtombergFanPlatform,
     private readonly atombergApi: AtombergApi,
@@ -56,6 +51,7 @@ export class AtombergFanPlatformAccessory {
     this.service.getCharacteristic(this.platform.Characteristic.Active)
       .onSet(this.setActive.bind(this));                // SET - bind to the `setOn` method below
     // .onGet(this.getActive.bind(this));              // GET - bind to the `getOn` method below
+    // We don't need onGet as we will be updating status via broadcast listener
 
 
     // register handlers for the Speed Characteristic
@@ -69,36 +65,15 @@ export class AtombergFanPlatformAccessory {
 
     this.refreshDeviceStatus(this.fanState);
 
-    /**
-     * Creating multiple services of the same type.
-     *
-     * To avoid "Cannot add a Service with the same UUID another Service without also defining a unique 'subtype' property." error,
-     * when creating multiple services of the same type, you need to use the following syntax to specify a name and subtype id:
-     * this.accessory.getService('NAME') || this.accessory.addService(this.platform.Service.Fan, 'NAME', 'USER_DEFINED_SUBTYPE_ID');
-     *
-     * The USER_DEFINED_SUBTYPE must be unique to the platform accessory (if you platform exposes multiple accessories, each accessory
-     * can use the same subtype id.)
-     */
-
-    /**
-     * Updating characteristics values asynchronously.
-     *
-     * Example showing how to update the state of a Characteristic asynchronously instead
-     * of using the `on('get')` handlers.
-     * Here we change update the motion sensor trigger states on and off every 10 seconds
-     * the `updateCharacteristic` method.
-     *
-     */
-    // subscribe to broadcast listener
   }
 
   /**
    * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
+   * These are sent when the user changes the state of fan i.e, turning the fan on/off.
    */
   async setActive(value: CharacteristicValue) {
     this.validateDeviceConnectionStatus();
-    // implement your own code to turn your device on/off
+
     this.fanState.power = value as boolean;
 
     this.platform.log.debug('Set Characteristic Active ->', value);
@@ -110,6 +85,7 @@ export class AtombergFanPlatformAccessory {
     this.sendDeviceUpdate(cmdData);
   }
 
+
   private validateDeviceConnectionStatus() {
     if (!this.fanState.is_online) {
       this.platform.log.info('Device is offline, unable to update device characteristic value');
@@ -117,6 +93,7 @@ export class AtombergFanPlatformAccessory {
     }
   }
 
+  // Send device update to Atomberg API
   private async sendDeviceUpdate(commandData: AtombergFanCommandData) {
     this.validateDeviceConnectionStatus();
 
@@ -138,19 +115,10 @@ export class AtombergFanPlatformAccessory {
     }
   }
 
-  /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
-   *
-   * GET requests should return as fast as possible. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
-   *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
 
   /**
    * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, changing the Brightness
+   * These are sent when the user changes the spped of the fan
    */
   async setRotationSpeed(value: CharacteristicValue) {
     this.validateDeviceConnectionStatus();
@@ -167,6 +135,9 @@ export class AtombergFanPlatformAccessory {
     this.sendDeviceUpdate(cmdData);
   }
 
+  /**
+   * This method is called when the device state is updated by the broadcast listener
+   */
   public refreshDeviceStatus(deviceState: AtombergFanDeviceState): void {
     try {
       // Skipping refresh
