@@ -1,5 +1,5 @@
 {
-  "private": true,
+  "private": false,
   "displayName": "Homebridge Atomberg Fan",
   "name": "homebridge-atomberg-fan",
   "version": "1.0.0",
