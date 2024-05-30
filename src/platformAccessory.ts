@@ -62,10 +62,12 @@ export class AtombergFanPlatformAccessory {
     this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .setProps({
         minValue: 0,
-        maxValue: 6,
-        minStep: 1,
+        maxValue: 100,
+        minStep: 20,
       })
       .onSet(this.setRotationSpeed.bind(this));
+
+    this.refreshDeviceStatus(this.fanState);
 
     /**
      * Creating multiple services of the same type.
@@ -116,8 +118,10 @@ export class AtombergFanPlatformAccessory {
   }
 
   private async sendDeviceUpdate(commandData: AtombergFanCommandData) {
+    this.validateDeviceConnectionStatus();
+
     try {
-      console.log('Sending command data: ', commandData);
+      this.platform.log.debug('Sending command data: ', commandData);
       const res = await this.atombergApi.sendCommand(commandData);
       if (res) {
         this.platform.log.debug(`Successfully sent device update for device ['${this.accessory.displayName}']`);
@@ -144,36 +148,23 @@ export class AtombergFanPlatformAccessory {
    * If your device takes time to respond you should update the status of your device
    * asynchronously instead using the `updateCharacteristic` method instead.
 
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
-   */
-  async getActive(): Promise<CharacteristicValue> {
-    this.validateDeviceConnectionStatus();
-    const isActive = this.fanState.power;
-
-    this.platform.log.debug('Get Characteristic Active ->', isActive);
-
-    // if you need to return an error to show the device as "Not Responding" in the Home app:
-    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
-
-    return isActive;
-  }
-
   /**
    * Handle "SET" requests from HomeKit
    * These are sent when the user changes the state of an accessory, for example, changing the Brightness
    */
   async setRotationSpeed(value: CharacteristicValue) {
-    // implement your own code to set the brightness
-    this.fanState.last_recorded_speed = value as number;
+    this.validateDeviceConnectionStatus();
 
-    this.platform.log.debug('Set Characteristic Speed -> ', value);
-    // commenting for now
-    // const cmdData = {
-    //   'device_id': this.accessory.context.device.device_id,
-    //   'command': {'speed': value},
-    // } as AtombergFanCommandData;
-    // this.sendDeviceUpdate(cmdData);
+    // implement your own code to set the brightness
+    const newSpeed = (value as number)/20;
+    this.fanState.last_recorded_speed = newSpeed;
+
+    this.platform.log.debug('Set Characteristic Speed -> ', newSpeed);
+    const cmdData = {
+      'device_id': this.accessory.context.device.device_id,
+      'command': {'speed': newSpeed},
+    } as AtombergFanCommandData;
+    this.sendDeviceUpdate(cmdData);
   }
 
   public refreshDeviceStatus(deviceState: AtombergFanDeviceState): void {
@@ -194,9 +185,12 @@ export class AtombergFanPlatformAccessory {
       this.service.updateCharacteristic(this.platform.Characteristic.Active, active);
 
       // Rotation Speed
-      const fanSpeed = deviceState.last_recorded_speed;
+      let fanSpeed = deviceState.last_recorded_speed;
+      if (fanSpeed > 5) {
+        fanSpeed = 5;
+      }
       this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-        .updateValue(fanSpeed);
+        .updateValue(fanSpeed*20);
 
     } catch (error) {
       this.platform.log.error('An error occurred while refreshing the device status. ' +

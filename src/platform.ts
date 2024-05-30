@@ -1,8 +1,9 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
-import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
-import { AtombergFanPlatformAccessory } from './platformAccessory';
-import AtombergApi from './atombergApi';
 import { AtombergFanPlatformConfig, AtombergFanDevice, AtombergFanDeviceState } from './model';
+import { AtombergFanPlatformAccessory } from './platformAccessory';
+import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
+import BroadcastListener from './broadcastListener';
+import AtombergApi from './atombergApi';
 /**
  * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
@@ -15,7 +16,9 @@ export class AtombergFanPlatform implements DynamicPlatformPlugin {
   // this is used to track restored cached accessories
   public readonly accessories: PlatformAccessory[] = [];
   public readonly atombergApi: AtombergApi;
+  public readonly broadcastListener: BroadcastListener;
   public readonly platformConfig: AtombergFanPlatformConfig;
+  private readonly accessoryInstances: Map<string, AtombergFanPlatformAccessory> = new Map();
 
   constructor(
     public readonly log: Logger,
@@ -28,6 +31,7 @@ export class AtombergFanPlatform implements DynamicPlatformPlugin {
       this.log,
       this.platformConfig,
     );
+    this.broadcastListener = BroadcastListener.getInstance(this.log);
 
     // Homebridge 1.8.0 introduced a `log.success` method that can be used to log success messages
     // For users that are on a version prior to 1.8.0, we need a 'polyfill' for this method
@@ -66,6 +70,11 @@ export class AtombergFanPlatform implements DynamicPlatformPlugin {
         });
 
       this.log.debug(`Finished initialising platform: ${this.platformConfig.name}`);
+    });
+
+    this.broadcastListener.listen();
+    this.broadcastListener.on('stateChange', (state: AtombergFanDeviceState) => {
+      this.handleStateChange(state);
     });
   }
 
@@ -123,7 +132,8 @@ export class AtombergFanPlatform implements DynamicPlatformPlugin {
 
             // create the accessory handler for the restored accessory
             // this is imported from `platformAccessory.ts`
-            new AtombergFanPlatformAccessory(this, this.atombergApi, existingAccessory, deviceState);
+            const atombergAccessory = new AtombergFanPlatformAccessory(this, this.atombergApi, existingAccessory, deviceState);
+            this.accessoryInstances.set(device.device_id, atombergAccessory);
 
             // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, e.g.:
             // remove platform accessories when no longer present
@@ -142,7 +152,8 @@ export class AtombergFanPlatform implements DynamicPlatformPlugin {
 
             // create the accessory handler for the newly create accessory
             // this is imported from `platformAccessory.ts`
-            new AtombergFanPlatformAccessory(this, this.atombergApi, accessory, deviceState);
+            const atombergAccessory = new AtombergFanPlatformAccessory(this, this.atombergApi, accessory, deviceState);
+            this.accessoryInstances.set(device.device_id, atombergAccessory);
 
             // link the accessory to your platform
             this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
@@ -168,6 +179,15 @@ export class AtombergFanPlatform implements DynamicPlatformPlugin {
       this.log.error('An error occurred during device discovery. ' +
           'Turn on debug mode for more information.');
       this.log.debug(JSON.stringify(error));
+    }
+  }
+
+  handleStateChange(state: AtombergFanDeviceState) {
+    // Find the corresponding accessory and update its state
+    const accessoryInstance = this.accessoryInstances.get(state.device_id);
+    if (accessoryInstance) {
+      this.log.debug('Updating state for accessory:', state.device_id);
+      accessoryInstance.refreshDeviceStatus(state);
     }
   }
 }
