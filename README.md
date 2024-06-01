@@ -4,6 +4,10 @@
 
 </span>
 
+[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+[![GitHub version](https://img.shields.io/github/package-json/v/Sangwan5688/homebridge-atomberg-fan?label=GitHub)](https://github.com/Sangwan5688/homebridge-atomberg-fan)
+[![npm version](https://img.shields.io/npm/v/homebridge-atomberg-fan?color=%23cb3837&label=npm)](https://www.npmjs.com/package/homebridge-atomberg-fan)
+
 Homebridge Atomberg Fan is a plugin for [Homebridge](https://homebridge.io/) that provides Homekit support for [Atomberg Smart Fans](https://atomberg.com/).
 
 ## How it works

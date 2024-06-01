@@ -61,13 +61,18 @@ export class AtombergFanPlatform implements DynamicPlatformPlugin {
 
       this.log.info('Attempting to log into Atomberg platform.');
       this.atombergApi.login()
-        .then(() => {
+        .then((res) => {
+          if (!res) {
+            this.log.error('Login failed. Skipping device discovery.');
+            return;
+          }
           this.log.info('Successfully logged in.');
           // run the method to discover / register your devices as accessories
           this.discoverDevices();
         })
-        .catch(() => {
+        .catch((error) => {
           this.log.error('Login failed. Skipping device discovery.');
+          this.log.debug(error);
         });
 
       this.log.debug(`Finished initialising platform: ${this.platformConfig.name}`);

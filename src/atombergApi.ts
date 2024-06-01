@@ -25,7 +25,7 @@ export default class AtombergApi {
   }
 
 
-  public async login(): Promise<void> {
+  public async login(): Promise<boolean> {
     // Clear all previous login retry timeouts and intervals
     for (const timeoutId of this._loginRetryTimeouts) {
       clearTimeout(timeoutId);
@@ -48,15 +48,18 @@ export default class AtombergApi {
         if (response.data.status !== 'Success') {
           this.accessToken = '';
           this.retryLogin(JSON.stringify(response.data.message));
+          return false;
         } else {
           this.accessToken = response.data.message.access_token;
           // Set an interval to refresh the login token periodically.
           this._loginRefreshInterval = setInterval(this.login.bind(this),
             LOGIN_TOKEN_REFRESH_INTERVAL);
+          return true;
         }
       })
       .catch((error: AxiosError) => {
-        this.retryLogin(JSON.stringify(error));
+        this.handleNetworkRequestError(error);
+        return false;
       });
   }
 
@@ -191,7 +194,7 @@ export default class AtombergApi {
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx.
-      this.logger.debug(JSON.stringify(error.response));
+      this.logger.debug(error?.response?.data ?? 'Some error occurred');
       if (error.response.status === 401) {
         // Unauthorised, try to log in again
         this._loginRetryTimeouts.push(setTimeout(this.login.bind(this), LOGIN_RETRY_DELAY));
