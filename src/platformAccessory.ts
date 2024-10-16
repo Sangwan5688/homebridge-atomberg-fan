@@ -64,10 +64,15 @@ export class AtombergFanPlatformAccessory {
       })
       .onSet(this.setRotationSpeed.bind(this));
 
-    this.lightbulbService = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
+    this.lightbulbService = this.accessory.getService(this.platform.Service.Lightbulb) ||
+    this.accessory.addService(this.platform.Service.Lightbulb);
 
     // Lightbulb Service Name
     this.lightbulbService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name + ' LED' || 'Unknown LED');
+
+    // Lightbulb Characteristic: On
+    this.lightbulbService.getCharacteristic(this.platform.Characteristic.On)
+      .onSet(this.setLED.bind(this));
 
     this.refreshDeviceStatus(this.fanState);
 
@@ -137,6 +142,24 @@ export class AtombergFanPlatformAccessory {
     const cmdData = {
       'device_id': this.accessory.context.device.device_id,
       'command': {'speed': newSpeed},
+    } as AtombergFanCommandData;
+    this.sendDeviceUpdate(cmdData);
+  }
+
+  /**
+   * Handle "SET" requests from HomeKit
+   * These are sent when the user changes the state of LED of the fan i.e, turning the LED on/off.
+   */
+  async setLED(value: CharacteristicValue) {
+    this.validateDeviceConnectionStatus();
+
+    const newLED = value as boolean;
+    this.fanState.led = newLED;
+
+    this.platform.log.debug('Set Characteristic LED -> ', newLED);
+    const cmdData = {
+      'device_id': this.accessory.context.device.device_id,
+      'command': {'led': newLED},
     } as AtombergFanCommandData;
     this.sendDeviceUpdate(cmdData);
   }
