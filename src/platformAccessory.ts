@@ -10,7 +10,7 @@ import { AtombergFanCommandData, AtombergFanDeviceState } from './model';
  * Each accessory may expose multiple services of different service types.
  */
 export class AtombergFanPlatformAccessory {
-  private service: Service;
+  private fanService: Service;
 
   constructor(
     private readonly platform: AtombergFanPlatform,
@@ -38,24 +38,24 @@ export class AtombergFanPlatformAccessory {
 
     // get the Fan service if it exists, otherwise create a new Fan service
     // you can create multiple services for each accessory
-    this.service = this.accessory.getService(this.platform.Service.Fanv2) || this.accessory.addService(this.platform.Service.Fanv2);
+    this.fanService = this.accessory.getService(this.platform.Service.Fanv2) || this.accessory.addService(this.platform.Service.Fanv2);
 
     // set the service name, this is what is displayed as the default name on the Home app
     // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name || 'Unknown Fan');
+    this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name || 'Unknown Fan');
 
     // each service must implement at-minimum the "required characteristics" for the given service type
     // see https://developers.homebridge.io/#/service/Lightbulb
 
     // register handlers for the Active Characteristic (required)
-    this.service.getCharacteristic(this.platform.Characteristic.Active)
+    this.fanService.getCharacteristic(this.platform.Characteristic.Active)
       .onSet(this.setActive.bind(this));                // SET - bind to the `setOn` method below
     // .onGet(this.getActive.bind(this));              // GET - bind to the `getOn` method below
     // We don't need onGet as we will be updating status via broadcast listener
 
 
     // register handlers for the Speed Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+    this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .setProps({
         minValue: 0,
         maxValue: 100,
@@ -153,14 +153,14 @@ export class AtombergFanPlatformAccessory {
       const active = deviceState.power
         ? this.platform.Characteristic.Active.ACTIVE
         : this.platform.Characteristic.Active.INACTIVE;
-      this.service.updateCharacteristic(this.platform.Characteristic.Active, active);
+      this.fanService.updateCharacteristic(this.platform.Characteristic.Active, active);
 
       // Rotation Speed
       let fanSpeed = deviceState.last_recorded_speed;
       if (fanSpeed > 5) {
         fanSpeed = 5;
       }
-      this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+      this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
         .updateValue(fanSpeed*20);
 
     } catch (error) {
