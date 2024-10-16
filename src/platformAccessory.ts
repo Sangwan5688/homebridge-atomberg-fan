@@ -10,7 +10,8 @@ import { AtombergFanCommandData, AtombergFanDeviceState } from './model';
  * Each accessory may expose multiple services of different service types.
  */
 export class AtombergFanPlatformAccessory {
-  private service: Service;
+  private fanService: Service;
+  private lightbulbService: Service;
 
   constructor(
     private readonly platform: AtombergFanPlatform,
@@ -38,30 +39,64 @@ export class AtombergFanPlatformAccessory {
 
     // get the Fan service if it exists, otherwise create a new Fan service
     // you can create multiple services for each accessory
-    this.service = this.accessory.getService(this.platform.Service.Fanv2) || this.accessory.addService(this.platform.Service.Fanv2);
+    this.fanService = this.accessory.getService(this.platform.Service.Fanv2) || this.accessory.addService(this.platform.Service.Fanv2);
 
     // set the service name, this is what is displayed as the default name on the Home app
     // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name || 'Unknown Fan');
+    this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name || 'Unknown Fan');
 
     // each service must implement at-minimum the "required characteristics" for the given service type
     // see https://developers.homebridge.io/#/service/Lightbulb
 
     // register handlers for the Active Characteristic (required)
-    this.service.getCharacteristic(this.platform.Characteristic.Active)
+    this.fanService.getCharacteristic(this.platform.Characteristic.Active)
       .onSet(this.setActive.bind(this));                // SET - bind to the `setOn` method below
     // .onGet(this.getActive.bind(this));              // GET - bind to the `getOn` method below
     // We don't need onGet as we will be updating status via broadcast listener
 
 
     // register handlers for the Speed Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+    this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .setProps({
         minValue: 0,
         maxValue: 100,
         minStep: 20,
       })
       .onSet(this.setRotationSpeed.bind(this));
+
+    this.lightbulbService = this.accessory.getService(this.platform.Service.Lightbulb) ||
+    this.accessory.addService(this.platform.Service.Lightbulb);
+
+    // Lightbulb Service Name
+    this.lightbulbService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name + ' LED' || 'Unknown LED');
+
+    // Lightbulb Characteristic: On
+    this.lightbulbService.getCharacteristic(this.platform.Characteristic.On)
+      .onSet(this.setLED.bind(this));
+
+    const devicesSeries = accessory.context.device.series;
+
+    // Lightbulb Characteristic Brightness for I1 or M1 series
+    if (devicesSeries === 'I1' || devicesSeries === 'M1') {
+      this.lightbulbService.getCharacteristic(this.platform.Characteristic.Brightness)
+        .setProps({
+          minValue: 0,
+          maxValue: 100,
+          minStep: 1,
+        })
+        .onSet(this.setLEDBrightness.bind(this));
+    }
+
+    // Lightbulb Characteristic Temperature for I1 series
+    if (devicesSeries === 'I1') {
+      this.lightbulbService.getCharacteristic(this.platform.Characteristic.ColorTemperature)
+        .setProps({
+          minValue: 300,
+          maxValue: 500,
+          minStep: 100,
+        })
+        .onSet(this.setLEDTemperature.bind(this));
+    }
 
     this.refreshDeviceStatus(this.fanState);
 
@@ -136,6 +171,61 @@ export class AtombergFanPlatformAccessory {
   }
 
   /**
+   * Handle "SET" requests from HomeKit
+   * These are sent when the user changes the state of LED of the fan i.e, turning the LED on/off.
+   */
+  async setLED(value: CharacteristicValue) {
+    this.validateDeviceConnectionStatus();
+
+    const newLED = value as boolean;
+    this.fanState.led = newLED;
+
+    this.platform.log.debug('Set Characteristic LED -> ', newLED);
+    const cmdData = {
+      'device_id': this.accessory.context.device.device_id,
+      'command': {'led': newLED},
+    } as AtombergFanCommandData;
+    this.sendDeviceUpdate(cmdData);
+  }
+
+  async setLEDBrightness(value: CharacteristicValue) {
+    this.validateDeviceConnectionStatus();
+
+    const newBrightness = value as number;
+    this.fanState.last_recorded_brightness = newBrightness;
+
+    this.platform.log.debug('Set Characteristic LED Brightness -> ', newBrightness);
+    const cmdData = {
+      'device_id': this.accessory.context.device.device_id,
+      'command': {'brightness': newBrightness},
+    } as AtombergFanCommandData;
+    this.sendDeviceUpdate(cmdData);
+  }
+
+  async setLEDTemperature(value: CharacteristicValue) {
+    this.validateDeviceConnectionStatus();
+
+    const newMired = value as number;
+    let newColorMode: string;
+    if (newMired >= 450) {
+      newColorMode = 'warm';
+    } else if (newMired >= 350 && newMired < 450) {
+      newColorMode = 'daylight';
+    } else {
+      newColorMode = 'cool';
+    }
+
+    this.fanState.last_recorded_color = newColorMode;
+
+    this.platform.log.debug('Set Characteristic LED Color Mode -> ', newColorMode);
+    const cmdData = {
+      'device_id': this.accessory.context.device.device_id,
+      'command': {'light_mode': newColorMode},
+    } as AtombergFanCommandData;
+    this.sendDeviceUpdate(cmdData);
+  }
+
+  /**
    * This method is called when the device state is updated by the broadcast listener
    */
   public refreshDeviceStatus(deviceState: AtombergFanDeviceState): void {
@@ -153,14 +243,14 @@ export class AtombergFanPlatformAccessory {
       const active = deviceState.power
         ? this.platform.Characteristic.Active.ACTIVE
         : this.platform.Characteristic.Active.INACTIVE;
-      this.service.updateCharacteristic(this.platform.Characteristic.Active, active);
+      this.fanService.updateCharacteristic(this.platform.Characteristic.Active, active);
 
       // Rotation Speed
       let fanSpeed = deviceState.last_recorded_speed;
       if (fanSpeed > 5) {
         fanSpeed = 5;
       }
-      this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+      this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
         .updateValue(fanSpeed*20);
 
     } catch (error) {
