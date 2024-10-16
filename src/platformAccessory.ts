@@ -11,6 +11,7 @@ import { AtombergFanCommandData, AtombergFanDeviceState } from './model';
  */
 export class AtombergFanPlatformAccessory {
   private fanService: Service;
+  private lightbulbService: Service;
 
   constructor(
     private readonly platform: AtombergFanPlatform,
@@ -62,6 +63,11 @@ export class AtombergFanPlatformAccessory {
         minStep: 20,
       })
       .onSet(this.setRotationSpeed.bind(this));
+
+    this.lightbulbService = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
+
+    // Lightbulb Service Name
+    this.lightbulbService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name + ' LED' || 'Unknown LED');
 
     this.refreshDeviceStatus(this.fanState);
 
