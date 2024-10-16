@@ -87,6 +87,17 @@ export class AtombergFanPlatformAccessory {
         .onSet(this.setLEDBrightness.bind(this));
     }
 
+    // Lightbulb Characteristic Temperature for I1 series
+    if (devicesSeries === 'I1') {
+      this.lightbulbService.getCharacteristic(this.platform.Characteristic.ColorTemperature)
+        .setProps({
+          minValue: 300,
+          maxValue: 500,
+          minStep: 100,
+        })
+        .onSet(this.setLEDTemperature.bind(this));
+    }
+
     this.refreshDeviceStatus(this.fanState);
 
   }
@@ -187,6 +198,29 @@ export class AtombergFanPlatformAccessory {
     const cmdData = {
       'device_id': this.accessory.context.device.device_id,
       'command': {'brightness': newBrightness},
+    } as AtombergFanCommandData;
+    this.sendDeviceUpdate(cmdData);
+  }
+
+  async setLEDTemperature(value: CharacteristicValue) {
+    this.validateDeviceConnectionStatus();
+
+    const newMired = value as number;
+    let newColorMode: string;
+    if (newMired >= 450) {
+      newColorMode = 'warm';
+    } else if (newMired >= 350 && newMired < 450) {
+      newColorMode = 'daylight';
+    } else {
+      newColorMode = 'cool';
+    }
+
+    this.fanState.last_recorded_color = newColorMode;
+
+    this.platform.log.debug('Set Characteristic LED Color Mode -> ', newColorMode);
+    const cmdData = {
+      'device_id': this.accessory.context.device.device_id,
+      'command': {'light_mode': newColorMode},
     } as AtombergFanCommandData;
     this.sendDeviceUpdate(cmdData);
   }
