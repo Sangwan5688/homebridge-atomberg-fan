@@ -74,6 +74,19 @@ export class AtombergFanPlatformAccessory {
     this.lightbulbService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(this.setLED.bind(this));
 
+    const devicesSeries = accessory.context.device.series;
+
+    // Lightbulb Characteristic Brightness for I1 or M1 series
+    if (devicesSeries === 'I1' || devicesSeries === 'M1') {
+      this.lightbulbService.getCharacteristic(this.platform.Characteristic.Brightness)
+        .setProps({
+          minValue: 0,
+          maxValue: 100,
+          minStep: 1,
+        })
+        .onSet(this.setLEDBrightness.bind(this));
+    }
+
     this.refreshDeviceStatus(this.fanState);
 
   }
@@ -160,6 +173,20 @@ export class AtombergFanPlatformAccessory {
     const cmdData = {
       'device_id': this.accessory.context.device.device_id,
       'command': {'led': newLED},
+    } as AtombergFanCommandData;
+    this.sendDeviceUpdate(cmdData);
+  }
+
+  async setLEDBrightness(value: CharacteristicValue) {
+    this.validateDeviceConnectionStatus();
+
+    const newBrightness = value as number;
+    this.fanState.last_recorded_brightness = newBrightness;
+
+    this.platform.log.debug('Set Characteristic LED Brightness -> ', newBrightness);
+    const cmdData = {
+      'device_id': this.accessory.context.device.device_id,
+      'command': {'brightness': newBrightness},
     } as AtombergFanCommandData;
     this.sendDeviceUpdate(cmdData);
   }
